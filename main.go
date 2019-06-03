@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
 )
 
 type GIF struct {
@@ -79,9 +80,19 @@ func GifJsPolyglot(gif GIF, js []byte) {
 	}
 }
 
+func JpegJsPolyglot(jpeg []byte, js []byte) {
+
+}
+
 func main() {
-	bytearray, err := ioutil.ReadFile("gg.gif")
-	jsarray, err := ioutil.ReadFile("test.js")
+	imagefile := os.Args[1]
+	jsfile := os.Args[2]
+
+	log.Println("Opening Image File: " + imagefile)
+	bytearray, err := ioutil.ReadFile(imagefile)
+
+	log.Println("Opening JS File: " + jsfile)
+	jsarray, err := ioutil.ReadFile(jsfile)
 	gif := GIFParse(bytearray)
 	if err != nil {
 		fmt.Println("Could not load")

@@ -2,4 +2,6 @@
 *.html
 *.js
 *.txt
+*.jpg
+*.jpeg
 .DS_Store
