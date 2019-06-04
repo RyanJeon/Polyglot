@@ -1,66 +1,16 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 )
-
-type GIF struct {
-	Signature       []byte
-	Version         []byte
-	Width           []byte
-	Height          []byte
-	Packed          byte
-	BackgroundColor byte
-	AspectRatio     byte
-	Image           []byte
-}
-
-func GIFParse(gifarray []byte) GIF {
-	gif := GIF{}
-
-	//Invalid header size
-	if len(gifarray) < 13 {
-		log.Fatal("Invalid GIF Format: Invalid header length")
-	}
-	gif = GIF{
-		Signature:       gifarray[0:3],
-		Version:         gifarray[3:6],
-		Width:           gifarray[6:8],
-		Height:          gifarray[8:10],
-		Packed:          gifarray[10],
-		BackgroundColor: gifarray[11],
-		AspectRatio:     gifarray[12],
-		Image:           gifarray[13:],
-	}
-
-	//Check signature
-	if string(gif.Signature) != "GIF" {
-		log.Fatal("Invalid GIF Format: Invalid Signature")
-	}
-
-	return gif
-}
-
-func GifToByteArray(gif GIF) []byte {
-	Concat := []byte{}
-	Concat = append(Concat, gif.Signature...)
-	Concat = append(Concat, gif.Version...)
-	Concat = append(Concat, gif.Width...)
-	Concat = append(Concat, gif.Height...)
-	Concat = append(Concat, gif.Packed)
-	Concat = append(Concat, gif.BackgroundColor)
-	Concat = append(Concat, gif.AspectRatio)
-	Concat = append(Concat, gif.Image...)
-	return Concat
-}
 
 func GifJsPolyglot(gif GIF, js []byte) {
 	// GIFa8=/* GIF meta data + image block */=1;Javascript
 	gif.Width = []byte("/*")
-	gifbytes := GifToByteArray(gif)
+	gifbytes := Concat(gif)
 
 	//Remove '*/' to ensure that the image block gets commented out [42 47] (2a2f)
 	for i := 0; i < len(gifbytes)-2; i++ {
@@ -80,7 +30,22 @@ func GifJsPolyglot(gif GIF, js []byte) {
 	}
 }
 
-func JpegJsPolyglot(jpeg []byte, js []byte) {
+func JpegHTMLPolyglot(jpeg JPEG, html []byte) {
+	// ....FF D8 FF E0
+	htmlLength := len(html)
+	log.Println(htmlLength)
+
+	//Extend APP0 length to inject html code in the header + <!-- comment
+	jpeg.Length[1] = byte(htmlLength) + jpeg.Length[1] + 4
+
+	log.Println(jpeg.Length[1])
+	html = append(html, []byte("<!--")...)
+	jpeg.Image = append(html, jpeg.Image...)
+	jpegbyte := Concat(jpeg)
+	err := ioutil.WriteFile("jpeg.html.html", jpegbyte, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 }
 
@@ -88,17 +53,36 @@ func main() {
 	imagefile := os.Args[1]
 	jsfile := os.Args[2]
 
+	//Currently checks the file type by parsing the name
+	//Make better later
+	imageSplit := strings.Split(imagefile, ".")
+	imageFileType := imageSplit[len(imageSplit)-1]
+
 	log.Println("Opening Image File: " + imagefile)
 	bytearray, err := ioutil.ReadFile(imagefile)
+	log.Println("Image File Type is: " + imageFileType)
+
+	//fail to load image file
+	if err != nil {
+		log.Fatal("Could not load Image File")
+	}
 
 	log.Println("Opening JS File: " + jsfile)
 	jsarray, err := ioutil.ReadFile(jsfile)
-	gif := GIFParse(bytearray)
-	if err != nil {
-		fmt.Println("Could not load")
-	}
-	gg := []byte("*/")
 
-	fmt.Println(gg)
-	GifJsPolyglot(gif, jsarray)
+	//fail to load image file
+	if err != nil {
+		log.Fatal("Could not load JS File")
+	}
+
+	//Invote different polyglot function for different filetype
+	switch imageFileType {
+	case "gif":
+		gif := GIFParse(bytearray)
+		GifJsPolyglot(gif, jsarray)
+	case "jpg", "jpeg":
+		jpeg := JPEGParse(bytearray)
+		JpegHTMLPolyglot(jpeg, jsarray)
+	}
+
 }
